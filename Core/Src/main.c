@@ -35,16 +35,15 @@
 
 #define USB_DELAY 200
 
-#define STATE_OFF 0
-
-#define STATE_ON  1
-#define STATE_IND 1
-#define STATE_INT 1
-
-#define STATE_LOW 2
-#define STATE_LO  2
-
-#define STATE_HI  3
+#define STATE_OFF   0
+#define STATE_ON    1
+#define STATE_IND   1
+#define STATE_INT   1
+#define STATE_LEFT  1
+#define STATE_LOW   2
+#define STATE_LO    2
+#define STATE_RIGHT 2
+#define STATE_HI    3
 
 // Blinkers, Fog
 typedef struct
@@ -53,7 +52,17 @@ typedef struct
 	uint16_t pin;
 	uint8_t current_state;
 	uint16_t button;
-} HandlerType1_t;
+} HandlerGeneric_t;
+
+typedef struct
+{
+	GPIO_TypeDef *gpio;
+	uint16_t pin_left;
+	uint16_t pin_right;
+	uint8_t current_state;
+	uint16_t button_left;
+	uint16_t button_right;
+} HandlerBlinkers_t;
 
 // Indication light, Low beam
 typedef struct
@@ -63,7 +72,7 @@ typedef struct
 	uint16_t pin_low;
 	uint8_t current_state;
 	uint16_t button;
-} HandlerType2_t;
+} HandlerLights_t;
 
 // Front wipers
 typedef struct
@@ -75,7 +84,7 @@ typedef struct
 	uint8_t current_state;
 	uint16_t button_up;
 	uint16_t button_down;
-} HandlerType3_t;
+} HandlerWipers_t;
 
 /* USER CODE END PD */
 
@@ -88,32 +97,37 @@ typedef struct
 
 /* USER CODE BEGIN PV */
 
-static HandlerType1_t handlers_type0[] = {
+// Button is pressed while lever is in corresponding position
+static HandlerGeneric_t handlers_type0[] = {
 		{.gpio = GPIOA, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = 1 << 4},  // High beam
 		{.gpio = GPIOA, .pin = GPIO_PIN_5, .current_state = STATE_OFF, .button = 1 << 5},  // Front Fog lamps
 		{.gpio = GPIOA, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = 1 << 6},  // Rear Fog lamps
-		//{.gpio = GPIOB, .pin = GPIO_PIN_3, .current_state = STATE_OFF, .button = 1 << 7},  // Wipers INT
-		//{.gpio = GPIOB, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = 1 << 8},  // Wipers LO
-		//{.gpio = GPIOB, .pin = GPIO_PIN_5, .current_state = STATE_OFF, .button = 1 << 9},  // Wipers HI
 		{.gpio = GPIOB, .pin = GPIO_PIN_7, .current_state = STATE_OFF, .button = 1 << 11}, // Spray FRONT
 		{.gpio = GPIOB, .pin = GPIO_PIN_8, .current_state = STATE_OFF, .button = 1 << 12}  // Spray REAR
 };
-static const int handlers_type0_size = 5;
 
-static HandlerType1_t handlers_type1[] = {
-		{.gpio = GPIOA, .pin = GPIO_PIN_0, .current_state = STATE_OFF, .button = 1 << 0},  // Left blinker
-		{.gpio = GPIOA, .pin = GPIO_PIN_1, .current_state = STATE_OFF, .button = 1 << 1},  // Right blinker
+// Button is pressed when lever enters and exits corresponding position
+static HandlerGeneric_t handlers_type1[] = {
 		{.gpio = GPIOB, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = 1 << 10}, // Wipers REAR
 };
-static const int handlers_type1_size = 3;
 
-static HandlerType2_t handler_low_beam = {
+// Custom behavior to handle blinkers logic
+static HandlerBlinkers_t handler_blinkers = {
+		.gpio = GPIOA, .pin_left = GPIO_PIN_0, .pin_right = GPIO_PIN_1, .current_state = STATE_OFF,
+		.button_left = 1 << 0, .button_right = 1 << 1
+};
+
+// Custom behavior to handle lights logic
+static HandlerLights_t handler_low_beam = {
 		.gpio = GPIOA, .pin_ind = GPIO_PIN_2, .pin_low = GPIO_PIN_3, .current_state = STATE_OFF, .button = 1 << 2
 };
 
-static HandlerType3_t handler_wipers = { .gpio = GPIOB, .pin_int = GPIO_PIN_3,
+// Custom behavior to handle wipers logic
+static HandlerWipers_t handler_wipers = { .gpio = GPIOB, .pin_int = GPIO_PIN_3,
 		.pin_lo = GPIO_PIN_4, .pin_hi = GPIO_PIN_5, .current_state = STATE_OFF,
-		.button_up = 1 << 7, .button_down = 1 << 8 };
+		.button_up = 1 << 7, .button_down = 1 << 8
+};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -164,6 +178,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  static const int handlers_type0_size = sizeof(handlers_type0)/sizeof(handlers_type0[0]);
+  static const int handlers_type1_size = sizeof(handlers_type1)/sizeof(handlers_type1[0]);
+
   while (1)
   {
 	  /*uint16_t report_val = 0;
@@ -187,14 +205,14 @@ int main(void)
 	  uint16_t report_val = 0;
 	  for(int i = 0; i < handlers_type0_size; ++i)
 	  {
-		  HandlerType1_t* handler = handlers_type0 + i;
+		  HandlerGeneric_t* handler = handlers_type0 + i;
 		  report_val |= HAL_GPIO_ReadPin(handler->gpio, handler->pin) ? 0 : handler->button;
 	  }
 
 	  // Button is pressed when GPIO state changes
 	  for(int i = 0; i < handlers_type1_size; ++i)
 	  {
-		  HandlerType1_t* handler = handlers_type1 + i;
+		  HandlerGeneric_t* handler = handlers_type1 + i;
 		  uint8_t new_state = HAL_GPIO_ReadPin(handler->gpio, handler->pin) ? STATE_OFF : STATE_ON;
 		  if(new_state != handler->current_state)
 		  {
@@ -204,6 +222,33 @@ int main(void)
 		  else
 		  {
 			  report_val &= ~handler->button;
+		  }
+	  }
+
+	  // Blinkers
+	  {
+		  uint8_t new_state = HAL_GPIO_ReadPin(handler_blinkers.gpio, handler_blinkers.pin_left) ? STATE_OFF : STATE_LEFT;
+		  new_state = HAL_GPIO_ReadPin(handler_blinkers.gpio, handler_blinkers.pin_right) ? new_state : STATE_RIGHT;
+		  if(new_state != handler_blinkers.current_state)
+		  {
+			  if(STATE_OFF == new_state)
+			  {
+				  report_val |= (STATE_LEFT == handler_blinkers.current_state ? handler_blinkers.button_left : handler_blinkers.button_right);
+			  }
+			  else if(STATE_LEFT == new_state)
+			  {
+				  report_val |= handler_blinkers.button_left;
+			  }
+			  else if(STATE_RIGHT == new_state)
+			  {
+				  report_val |= handler_blinkers.button_right;
+			  }
+			  handler_blinkers.current_state = new_state;
+		  }
+		  else
+		  {
+			  report_val &= ~handler_blinkers.button_left;
+			  report_val &= ~handler_blinkers.button_right;
 		  }
 	  }
 
