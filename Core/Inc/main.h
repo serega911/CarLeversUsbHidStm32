@@ -57,6 +57,32 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define BLINK_1_Pin GPIO_PIN_0
+#define BLINK_1_GPIO_Port GPIOA
+#define BLINK_2_Pin GPIO_PIN_1
+#define BLINK_2_GPIO_Port GPIOA
+#define MARKERS_Pin GPIO_PIN_2
+#define MARKERS_GPIO_Port GPIOA
+#define LOW_BEAM_Pin GPIO_PIN_3
+#define LOW_BEAM_GPIO_Port GPIOA
+#define HIGH_BEAM_Pin GPIO_PIN_4
+#define HIGH_BEAM_GPIO_Port GPIOA
+#define FOG_FRONT_Pin GPIO_PIN_5
+#define FOG_FRONT_GPIO_Port GPIOA
+#define FOG_REAR_Pin GPIO_PIN_6
+#define FOG_REAR_GPIO_Port GPIOA
+#define WIPERS_INT_Pin GPIO_PIN_3
+#define WIPERS_INT_GPIO_Port GPIOB
+#define WIPERS_LO_Pin GPIO_PIN_4
+#define WIPERS_LO_GPIO_Port GPIOB
+#define WIPERS_HI_Pin GPIO_PIN_5
+#define WIPERS_HI_GPIO_Port GPIOB
+#define WIPERS_REAR_Pin GPIO_PIN_6
+#define WIPERS_REAR_GPIO_Port GPIOB
+#define SPRAY_FRONT_Pin GPIO_PIN_7
+#define SPRAY_FRONT_GPIO_Port GPIOB
+#define SPRAY_REAR_Pin GPIO_PIN_8
+#define SPRAY_REAR_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

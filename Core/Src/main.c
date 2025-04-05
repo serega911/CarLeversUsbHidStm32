@@ -33,12 +33,18 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define USB_DELAY 20
+#define USB_DELAY 200
 
 #define STATE_OFF 0
+
 #define STATE_ON  1
-#define SATE_IND  1
+#define STATE_IND 1
+#define STATE_INT 1
+
 #define STATE_LOW 2
+#define STATE_LO  2
+
+#define STATE_HI  3
 
 // Blinkers, Fog
 typedef struct
@@ -46,7 +52,7 @@ typedef struct
 	GPIO_TypeDef *gpio;
 	uint16_t pin;
 	uint8_t current_state;
-	uint8_t button;
+	uint16_t button;
 } HandlerType1_t;
 
 // Indication light, Low beam
@@ -56,8 +62,20 @@ typedef struct
 	uint16_t pin_ind;
 	uint16_t pin_low;
 	uint8_t current_state;
-	uint8_t button;
+	uint16_t button;
 } HandlerType2_t;
+
+// Front wipers
+typedef struct
+{
+	GPIO_TypeDef *gpio;
+	uint16_t pin_int;
+	uint16_t pin_lo;
+	uint16_t pin_hi;
+	uint8_t current_state;
+	uint16_t button_up;
+	uint16_t button_down;
+} HandlerType3_t;
 
 /* USER CODE END PD */
 
@@ -70,21 +88,32 @@ typedef struct
 
 /* USER CODE BEGIN PV */
 
-static HandlerType1_t handler_high_beam = {
-		.gpio = GPIOA, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = 1 << 4  // High beam
+static HandlerType1_t handlers_type0[] = {
+		{.gpio = GPIOA, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = 1 << 4},  // High beam
+		{.gpio = GPIOA, .pin = GPIO_PIN_5, .current_state = STATE_OFF, .button = 1 << 5},  // Front Fog lamps
+		{.gpio = GPIOA, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = 1 << 6},  // Rear Fog lamps
+		//{.gpio = GPIOB, .pin = GPIO_PIN_3, .current_state = STATE_OFF, .button = 1 << 7},  // Wipers INT
+		//{.gpio = GPIOB, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = 1 << 8},  // Wipers LO
+		//{.gpio = GPIOB, .pin = GPIO_PIN_5, .current_state = STATE_OFF, .button = 1 << 9},  // Wipers HI
+		{.gpio = GPIOB, .pin = GPIO_PIN_7, .current_state = STATE_OFF, .button = 1 << 11}, // Spray FRONT
+		{.gpio = GPIOB, .pin = GPIO_PIN_8, .current_state = STATE_OFF, .button = 1 << 12}  // Spray REAR
 };
+static const int handlers_type0_size = 5;
 
 static HandlerType1_t handlers_type1[] = {
 		{.gpio = GPIOA, .pin = GPIO_PIN_0, .current_state = STATE_OFF, .button = 1 << 0},  // Left blinker
 		{.gpio = GPIOA, .pin = GPIO_PIN_1, .current_state = STATE_OFF, .button = 1 << 1},  // Right blinker
-		//{.gpio = GPIOA, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = 1 << 4},  // High beam
-		{.gpio = GPIOA, .pin = GPIO_PIN_5, .current_state = STATE_OFF, .button = 1 << 5},  // Fog lamps
+		{.gpio = GPIOB, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = 1 << 10}, // Wipers REAR
 };
 static const int handlers_type1_size = 3;
 
 static HandlerType2_t handler_low_beam = {
 		.gpio = GPIOA, .pin_ind = GPIO_PIN_2, .pin_low = GPIO_PIN_3, .current_state = STATE_OFF, .button = 1 << 2
 };
+
+static HandlerType3_t handler_wipers = { .gpio = GPIOB, .pin_int = GPIO_PIN_3,
+		.pin_lo = GPIO_PIN_4, .pin_hi = GPIO_PIN_5, .current_state = STATE_OFF,
+		.button_up = 1 << 7, .button_down = 1 << 8 };
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -137,10 +166,32 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // High beam
-	  uint8_t report_val = HAL_GPIO_ReadPin(handler_high_beam.gpio, handler_high_beam.pin) ? 0 : handler_high_beam.button;
+	  /*uint16_t report_val = 0;
+	  report_val |= HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) ? 0 : 1 << 0;
+	  report_val |= HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1) ? 0 : 1 << 1;
+	  report_val |= HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2) ? 0 : 1 << 2;
+	  report_val |= HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) ? 0 : 1 << 3;
+	  report_val |= HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) ? 0 : 1 << 4;
+	  report_val |= HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) ? 0 : 1 << 5;
+	  report_val |= HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) ? 0 : 1 << 6;
+	  report_val |= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_3) ? 0 : 1 << 7;
+	  report_val |= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) ? 0 : 1 << 8;
+	  report_val |= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) ? 0 : 1 << 9;
+	  report_val |= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) ? 0 : 1 << 10;
+	  report_val |= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7) ? 0 : 1 << 11;
+	  report_val |= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) ? 0 : 1 << 12;
+	  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t*)&report_val, 2);
+	  HAL_Delay(USB_DELAY);*/
 
-	  // Blinkers, Fog
+	  // Button is pressed while GPIO is active
+	  uint16_t report_val = 0;
+	  for(int i = 0; i < handlers_type0_size; ++i)
+	  {
+		  HandlerType1_t* handler = handlers_type0 + i;
+		  report_val |= HAL_GPIO_ReadPin(handler->gpio, handler->pin) ? 0 : handler->button;
+	  }
+
+	  // Button is pressed when GPIO state changes
 	  for(int i = 0; i < handlers_type1_size; ++i)
 	  {
 		  HandlerType1_t* handler = handlers_type1 + i;
@@ -158,7 +209,7 @@ int main(void)
 
 	  // Low beam, indication light
 	  {
-		  uint8_t new_state = HAL_GPIO_ReadPin(handler_low_beam.gpio, handler_low_beam.pin_ind) ? STATE_OFF : SATE_IND;
+		  uint8_t new_state = HAL_GPIO_ReadPin(handler_low_beam.gpio, handler_low_beam.pin_ind) ? STATE_OFF : STATE_IND;
 		  new_state = HAL_GPIO_ReadPin(handler_low_beam.gpio, handler_low_beam.pin_low) ? new_state : STATE_LOW;
 		  if(new_state != handler_low_beam.current_state)
 		  {
@@ -167,15 +218,63 @@ int main(void)
 		  }
 	  }
 
+	  // Front wipers
+	  {
+		  uint8_t new_state = handler_wipers.current_state;
+		  if(!HAL_GPIO_ReadPin(handler_wipers.gpio, handler_wipers.pin_int))
+		  {
+			  new_state = STATE_INT;
+		  }
+		  else if(!HAL_GPIO_ReadPin(handler_wipers.gpio, handler_wipers.pin_lo))
+		  {
+			  new_state = STATE_LO;
+		  }
+		  else if(!HAL_GPIO_ReadPin(handler_wipers.gpio, handler_wipers.pin_hi))
+		  {
+			  new_state = STATE_HI;
+		  }
+		  else
+		  {
+			  new_state = STATE_OFF;
+		  }
+
+		  if(new_state > handler_wipers.current_state)
+		  {
+			  report_val |= handler_wipers.button_up;
+			  ++handler_wipers.current_state;
+		  }
+		  else if(new_state < handler_wipers.current_state)
+		  {
+			  report_val |= handler_wipers.button_down;
+			  --handler_wipers.current_state;
+		  }
+	  }
+
 	  // Send buttons
-	  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &report_val, 1);
+	  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t*)&report_val, 2);
 	  HAL_Delay(USB_DELAY);
 
 	  // Unset Low Beam button
 	  if(report_val & handler_low_beam.button)
 	  {
 		  report_val &= ~handler_low_beam.button;
-		  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &report_val, 1);
+		  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t*)&report_val, 2);
+		  HAL_Delay(USB_DELAY);
+	  }
+
+	  // Unset Wipers UP button
+	  if(report_val & handler_wipers.button_up)
+	  {
+		  report_val &= ~handler_wipers.button_up;
+		  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t*)&report_val, 2);
+		  HAL_Delay(USB_DELAY);
+	  }
+
+	  // Unset Wipers DOWN button
+	  if(report_val & handler_wipers.button_down)
+	  {
+		  report_val &= ~handler_wipers.button_down;
+		  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, (uint8_t*)&report_val, 2);
 		  HAL_Delay(USB_DELAY);
 	  }
     /* USER CODE END WHILE */
@@ -245,14 +344,23 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pins : PA0 PA1 PA2 PA3
-                           PA4 PA5 PA6 PA7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
+  /*Configure GPIO pins : BLINK_1_Pin BLINK_2_Pin MARKERS_Pin LOW_BEAM_Pin
+                           HIGH_BEAM_Pin FOG_FRONT_Pin FOG_REAR_Pin */
+  GPIO_InitStruct.Pin = BLINK_1_Pin|BLINK_2_Pin|MARKERS_Pin|LOW_BEAM_Pin
+                          |HIGH_BEAM_Pin|FOG_FRONT_Pin|FOG_REAR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : WIPERS_INT_Pin WIPERS_LO_Pin WIPERS_HI_Pin WIPERS_REAR_Pin
+                           SPRAY_FRONT_Pin SPRAY_REAR_Pin */
+  GPIO_InitStruct.Pin = WIPERS_INT_Pin|WIPERS_LO_Pin|WIPERS_HI_Pin|WIPERS_REAR_Pin
+                          |SPRAY_FRONT_Pin|SPRAY_REAR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
