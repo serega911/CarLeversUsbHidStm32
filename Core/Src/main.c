@@ -22,6 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 #include "usbd_customhid.h"
 /* USER CODE END Includes */
 
@@ -62,6 +63,8 @@ typedef struct
 	uint8_t current_state;
 	uint16_t button_left;
 	uint16_t button_right;
+	uint32_t enable_timestamp;
+	bool lazy;
 } HandlerBlinkers_t;
 
 // Indication light, Low beam
@@ -114,7 +117,7 @@ static HandlerGeneric_t handlers_type1[] = {
 // Custom behavior to handle blinkers logic
 static HandlerBlinkers_t handler_blinkers = {
 		.gpio = GPIOA, .pin_left = GPIO_PIN_0, .pin_right = GPIO_PIN_1, .current_state = STATE_OFF,
-		.button_left = 1 << 0, .button_right = 1 << 1
+		.button_left = 1 << 0, .button_right = 1 << 1, .enable_timestamp = 0, .lazy = false
 };
 
 // Custom behavior to handle lights logic
@@ -229,19 +232,42 @@ int main(void)
 	  {
 		  uint8_t new_state = HAL_GPIO_ReadPin(handler_blinkers.gpio, handler_blinkers.pin_left) ? STATE_OFF : STATE_LEFT;
 		  new_state = HAL_GPIO_ReadPin(handler_blinkers.gpio, handler_blinkers.pin_right) ? new_state : STATE_RIGHT;
+		  const uint32_t ms = HAL_GetTick();
+
+		  if(STATE_OFF == new_state && 0 != handler_blinkers.enable_timestamp)
+		  {
+				const uint32_t ms_passed = ms - handler_blinkers.enable_timestamp;
+				if(ms_passed < 1000)
+				{
+					handler_blinkers.lazy = true;
+					new_state = handler_blinkers.current_state;
+				}
+				else if(handler_blinkers.lazy && ms_passed < 3100)
+				{
+					new_state = handler_blinkers.current_state;
+				}
+				else
+				{
+					handler_blinkers.lazy = false;
+				}
+		  }
+
 		  if(new_state != handler_blinkers.current_state)
 		  {
 			  if(STATE_OFF == new_state)
 			  {
 				  report_val |= (STATE_LEFT == handler_blinkers.current_state ? handler_blinkers.button_left : handler_blinkers.button_right);
+				  handler_blinkers.enable_timestamp = 0;
 			  }
 			  else if(STATE_LEFT == new_state)
 			  {
 				  report_val |= handler_blinkers.button_left;
+				  handler_blinkers.enable_timestamp = ms;
 			  }
 			  else if(STATE_RIGHT == new_state)
 			  {
 				  report_val |= handler_blinkers.button_right;
+				  handler_blinkers.enable_timestamp = ms;
 			  }
 			  handler_blinkers.current_state = new_state;
 		  }
