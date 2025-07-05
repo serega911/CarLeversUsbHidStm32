@@ -71,6 +71,12 @@ void Error_Handler(void);
 #define FOG_FRONT_GPIO_Port GPIOA
 #define FOG_REAR_Pin GPIO_PIN_6
 #define FOG_REAR_GPIO_Port GPIOA
+#define JOYSTICK_X_Pin GPIO_PIN_7
+#define JOYSTICK_X_GPIO_Port GPIOA
+#define JOYSTICK_Y_Pin GPIO_PIN_0
+#define JOYSTICK_Y_GPIO_Port GPIOB
+#define JOYSTICK_BTN_Pin GPIO_PIN_1
+#define JOYSTICK_BTN_GPIO_Port GPIOB
 #define WIPERS_INT_Pin GPIO_PIN_3
 #define WIPERS_INT_GPIO_Port GPIOB
 #define WIPERS_LO_Pin GPIO_PIN_4
