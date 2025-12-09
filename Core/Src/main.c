@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdbool.h>
 #include "usbd_customhid.h"
+#include "stm32f1xx_ll_gpio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,7 +35,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define USB_DELAY 200
+#define USB_DELAY 100
 
 #define STATE_OFF   0
 #define STATE_ON    1
@@ -45,6 +46,23 @@
 #define STATE_LO    2
 #define STATE_RIGHT 2
 #define STATE_HI    3
+
+#define BTN_1       1 << 0
+#define BTN_2       1 << 1
+#define BTN_3       1 << 2
+#define BTN_4       1 << 3
+#define BTN_5       1 << 4
+#define BTN_6       1 << 5
+#define BTN_7       1 << 6
+#define BTN_8       1 << 7
+#define BTN_9       1 << 8
+#define BTN_10      1 << 9
+#define BTN_11      1 << 10
+#define BTN_12      1 << 11
+#define BTN_13      1 << 12
+#define BTN_14      1 << 13
+#define BTN_15      1 << 14
+#define BTN_16      1 << 15
 
 typedef struct ReportDescr {
 	int8_t x;
@@ -80,7 +98,9 @@ typedef struct
 	uint16_t pin_ind;
 	uint16_t pin_low;
 	uint8_t current_state;
-	uint16_t button;
+	uint16_t button_off;
+	uint16_t button_markers;
+	uint16_t button_low;
 } HandlerLights_t;
 
 // Front wipers
@@ -112,34 +132,31 @@ uint16_t adc_buffer[2] = {0};
 
 // Button is pressed while lever is in corresponding position
 static HandlerGeneric_t handlers_type0[] = {
-		{.gpio = GPIOB, .pin = GPIO_PIN_1, .current_state = STATE_OFF, .button = 1 << 0},  // Joystick Btn
-		{.gpio = GPIOA, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = 1 << 4},  // High beam
-		{.gpio = GPIOA, .pin = GPIO_PIN_5, .current_state = STATE_OFF, .button = 1 << 5},  // Front Fog lamps
-		{.gpio = GPIOA, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = 1 << 6},  // Rear Fog lamps
-		{.gpio = GPIOB, .pin = GPIO_PIN_7, .current_state = STATE_OFF, .button = 1 << 11}, // Spray FRONT
-		{.gpio = GPIOB, .pin = GPIO_PIN_8, .current_state = STATE_OFF, .button = 1 << 12}  // Spray REAR
+		{.gpio = GPIOB, .pin = GPIO_PIN_1, .current_state = STATE_OFF, .button = BTN_1},  // Joystick Btn
+		{.gpio = GPIOA, .pin = GPIO_PIN_0, .current_state = STATE_OFF, .button = BTN_2},  // Left turn signal
+		{.gpio = GPIOA, .pin = GPIO_PIN_1, .current_state = STATE_OFF, .button = BTN_3},  // Right turn signal
+		{.gpio = GPIOA, .pin = GPIO_PIN_4, .current_state = STATE_OFF, .button = BTN_7},  // High beam
+		{.gpio = GPIOA, .pin = GPIO_PIN_5, .current_state = STATE_OFF, .button = BTN_8},  // Front Fog lamps
+		{.gpio = GPIOA, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = BTN_11},  // Rear Fog lamps
+		{.gpio = GPIOB, .pin = GPIO_PIN_7, .current_state = STATE_OFF, .button = BTN_12}, // Spray FRONT
+		{.gpio = GPIOB, .pin = GPIO_PIN_8, .current_state = STATE_OFF, .button = BTN_13}  // Spray REAR
 };
 
 // Button is pressed when lever enters and exits corresponding position
 static HandlerGeneric_t handlers_type1[] = {
-		{.gpio = GPIOB, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = 1 << 10}, // Wipers REAR
-};
-
-// Custom behavior to handle blinkers logic
-static HandlerBlinkers_t handler_blinkers = {
-		.gpio = GPIOA, .pin_left = GPIO_PIN_0, .pin_right = GPIO_PIN_1, .current_state = STATE_OFF,
-		.button_left = 1 << 1, .button_right = 1 << 2, .enable_timestamp = 0, .lazy = false
+		{.gpio = GPIOB, .pin = GPIO_PIN_6, .current_state = STATE_OFF, .button = BTN_14}, // Wipers REAR
 };
 
 // Custom behavior to handle lights logic
 static HandlerLights_t handler_low_beam = {
-		.gpio = GPIOA, .pin_ind = GPIO_PIN_2, .pin_low = GPIO_PIN_3, .current_state = STATE_OFF, .button = 1 << 3
+		.gpio = GPIOA, .pin_ind = GPIO_PIN_2, .pin_low = GPIO_PIN_3, .current_state = STATE_OFF,
+		.button_off = BTN_4, .button_markers = BTN_5, .button_low = BTN_6
 };
 
 // Custom behavior to handle wipers logic
 static HandlerWipers_t handler_wipers = { .gpio = GPIOB, .pin_int = GPIO_PIN_3,
 		.pin_lo = GPIO_PIN_4, .pin_hi = GPIO_PIN_5, .current_state = STATE_OFF,
-		.button_up = 1 << 7, .button_down = 1 << 8
+		.button_up = BTN_9, .button_down = BTN_10
 };
 
 /* USER CODE END PV */
@@ -151,7 +168,6 @@ static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 static void updateUsbReportGeneric( ReportDescr_t *report);
-static void updateUsbReportBlinkers( ReportDescr_t *report);
 static void updateUsbReportLights( ReportDescr_t *report);
 static void updateUsbReportWipers(ReportDescr_t *report);
 /* USER CODE END PFP */
@@ -171,7 +187,7 @@ static void updateUsbReportGeneric( ReportDescr_t *report)
 	for(int i = 0; i < handlers_type0_size; ++i)
 	{
 		HandlerGeneric_t* handler = handlers_type0 + i;
-		if(0 == HAL_GPIO_ReadPin(handler->gpio, handler->pin))
+		if(!HAL_GPIO_ReadPin(handler->gpio, handler->pin))
 		{
 			report->btns |= handler->button;
 		}
@@ -187,7 +203,7 @@ static void updateUsbReportGeneric( ReportDescr_t *report)
 		for(int i = 0; i < handlers_type1_size; ++i)
 		{
 			HandlerGeneric_t* handler = handlers_type1 + i;
-			uint8_t new_state = HAL_GPIO_ReadPin(handler->gpio, handler->pin) ? STATE_OFF : STATE_ON;
+			uint8_t new_state = !HAL_GPIO_ReadPin(handler->gpio, handler->pin) ? STATE_ON : STATE_OFF;
 			if(new_state != handler->current_state)
 			{
 				handler->current_state = new_state;
@@ -201,61 +217,6 @@ static void updateUsbReportGeneric( ReportDescr_t *report)
 	}
 }
 
-static void updateUsbReportBlinkers( ReportDescr_t *report)
-{
-	uint8_t new_state = HAL_GPIO_ReadPin(handler_blinkers.gpio, handler_blinkers.pin_left) ? STATE_OFF : STATE_LEFT;
-	new_state = HAL_GPIO_ReadPin(handler_blinkers.gpio, handler_blinkers.pin_right) ? new_state : STATE_RIGHT;
-	static uint32_t last_called = 0;
-	const uint32_t ms = HAL_GetTick();
-
-	if( ms - last_called > USB_DELAY )
-	{
-		last_called = ms;
-		if(STATE_OFF == new_state && 0 != handler_blinkers.enable_timestamp)
-		{
-			const uint32_t ms_passed = ms - handler_blinkers.enable_timestamp;
-			if(ms_passed < 1000)
-			{
-				handler_blinkers.lazy = true;
-				new_state = handler_blinkers.current_state;
-			}
-			else if(handler_blinkers.lazy && ms_passed < 3100)
-			{
-				new_state = handler_blinkers.current_state;
-			}
-			else
-			{
-				handler_blinkers.lazy = false;
-			}
-		}
-
-		if(new_state != handler_blinkers.current_state)
-		{
-		  if(STATE_OFF == new_state)
-		  {
-			  report->btns |= (STATE_LEFT == handler_blinkers.current_state ? handler_blinkers.button_left : handler_blinkers.button_right);
-			  handler_blinkers.enable_timestamp = 0;
-		  }
-		  else if(STATE_LEFT == new_state)
-		  {
-			  report->btns |= handler_blinkers.button_left;
-			  handler_blinkers.enable_timestamp = ms;
-		  }
-		  else if(STATE_RIGHT == new_state)
-		  {
-			  report->btns |= handler_blinkers.button_right;
-			  handler_blinkers.enable_timestamp = ms;
-		  }
-		  handler_blinkers.current_state = new_state;
-		}
-		else
-		{
-			report->btns &= ~handler_blinkers.button_left;
-			report->btns &= ~handler_blinkers.button_right;
-		}
-	}
-}
-
 static void updateUsbReportLights(ReportDescr_t *report)
 {
 	static uint32_t last_called = 0;
@@ -264,18 +225,28 @@ static void updateUsbReportLights(ReportDescr_t *report)
 	if( ms - last_called > USB_DELAY )
 	{
 		last_called = ms;
-		if(report->btns & handler_low_beam.button)
+		if(report->btns & handler_low_beam.button_off)
 		{
-			report->btns &= ~handler_low_beam.button;
+			report->btns &= ~handler_low_beam.button_off;
+		}
+		else if(report->btns & handler_low_beam.button_markers)
+		{
+			report->btns &= ~handler_low_beam.button_markers;
+		}
+		else if(report->btns & handler_low_beam.button_low)
+		{
+			report->btns &= ~handler_low_beam.button_low;
 		}
 		else
 		{
-			uint8_t new_state = HAL_GPIO_ReadPin(handler_low_beam.gpio, handler_low_beam.pin_ind) ? STATE_OFF : STATE_IND;
-			new_state = HAL_GPIO_ReadPin(handler_low_beam.gpio, handler_low_beam.pin_low) ? new_state : STATE_LOW;
+			uint32_t pins = LL_GPIO_ReadInputPort(handler_low_beam.gpio);
+			uint8_t new_state = !(pins & handler_low_beam.pin_low) ? STATE_LOW :
+								!(pins & handler_low_beam.pin_ind) ? STATE_IND : STATE_OFF;
 			if(new_state != handler_low_beam.current_state)
 			{
-				handler_low_beam.current_state = (handler_low_beam.current_state == STATE_LOW ? STATE_OFF : handler_low_beam.current_state + 1);
-				report->btns |= handler_low_beam.button;
+				handler_low_beam.current_state = new_state;
+				report->btns |= (new_state == STATE_LOW) ? handler_low_beam.button_low :
+								(new_state == STATE_IND) ? handler_low_beam.button_markers : handler_low_beam.button_off;
 			}
 		}
 	}
@@ -299,24 +270,10 @@ static void updateUsbReportWipers(ReportDescr_t *report)
 		}
 		else
 		{
-			uint8_t new_state = handler_wipers.current_state;
-			if(!HAL_GPIO_ReadPin(handler_wipers.gpio, handler_wipers.pin_int))
-			{
-				new_state = STATE_INT;
-			}
-			else if(!HAL_GPIO_ReadPin(handler_wipers.gpio, handler_wipers.pin_lo))
-			{
-				new_state = STATE_LO;
-			}
-			else if(!HAL_GPIO_ReadPin(handler_wipers.gpio, handler_wipers.pin_hi))
-			{
-				new_state = STATE_HI;
-			}
-			else
-			{
-				new_state = STATE_OFF;
-			}
-
+			uint32_t pins = LL_GPIO_ReadInputPort(handler_wipers.gpio);
+			uint8_t new_state = !(pins & handler_wipers.pin_hi) ? STATE_HI :
+								!(pins & handler_wipers.pin_lo) ? STATE_LO :
+								!(pins & handler_wipers.pin_int) ? STATE_INT : STATE_OFF;
 			if(new_state > handler_wipers.current_state)
 			{
 				report->btns |= handler_wipers.button_up;
@@ -377,7 +334,6 @@ int main(void)
   {
 	  // Update buttons
 	  updateUsbReportGeneric(&report_val);
-	  updateUsbReportBlinkers(&report_val);
 	  updateUsbReportLights(&report_val);
 	  updateUsbReportWipers(&report_val);
 
