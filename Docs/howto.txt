@@ -1,0 +1,277 @@
+
+#ifndef USE_USBD_COMPOSITE
+/* USB HID device FS Configuration Descriptor */
+__ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN_END =
+{
+  0x09,                                               /* bLength: Configuration Descriptor size */
+  USB_DESC_TYPE_CONFIGURATION,                        /* bDescriptorType: Configuration */
+  USB_HID_CONFIG_DESC_SIZ,                            /* wTotalLength: Bytes returned */
+  0x00,
+  0x01,                                               /* bNumInterfaces: 1 interface */
+  0x01,                                               /* bConfigurationValue: Configuration value */
+  0x00,                                               /* iConfiguration: Index of string descriptor
+                                                         describing the configuration */
+#if (USBD_SELF_POWERED == 1U)
+  0xE0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0xA0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#endif /* USBD_SELF_POWERED */
+  USBD_MAX_POWER,                                     /* MaxPower (mA) */
+
+  /************** Descriptor of Joystick Mouse interface ****************/
+  /* 09 */
+  0x09,                                               /* bLength: Interface Descriptor size */
+  USB_DESC_TYPE_INTERFACE,                            /* bDescriptorType: Interface descriptor type */
+  0x00,                                               /* bInterfaceNumber: Number of Interface */
+  0x00,                                               /* bAlternateSetting: Alternate setting */
+  0x01,                                               /* bNumEndpoints */
+  0x03,                                               /* bInterfaceClass: HID */
+  0x01,                                               /* bInterfaceSubClass : 1=BOOT, 0=no boot */
+  0x01,                                               /* nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse */
+  0,                                                  /* iInterface: Index of string descriptor */
+  /******************** Descriptor of Joystick Mouse HID ********************/
+  /* 18 */
+  0x09,                                               /* bLength: HID Descriptor size */
+  HID_DESCRIPTOR_TYPE,                                /* bDescriptorType: HID */
+  0x11,                                               /* bcdHID: HID Class Spec release number */
+  0x01,
+  0x00,                                               /* bCountryCode: Hardware target country */
+  0x01,                                               /* bNumDescriptors: Number of HID class descriptors to follow */
+  0x22,                                               /* bDescriptorType */
+  HID_MOUSE_REPORT_DESC_SIZE,                         /* wItemLength: Total length of Report descriptor */
+  0x00,
+  /******************** Descriptor of Mouse endpoint ********************/
+  /* 27 */
+  0x07,                                               /* bLength: Endpoint Descriptor size */
+  USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType:*/
+
+  HID_EPIN_ADDR,                                      /* bEndpointAddress: Endpoint Address (IN) */
+  0x03,                                               /* bmAttributes: Interrupt endpoint */
+  HID_EPIN_SIZE,                                      /* wMaxPacketSize: 4 Bytes max */
+  0x00,
+  HID_FS_BINTERVAL,                                   /* bInterval: Polling Interval */
+  /* 34 */
+};
+#endif /* USE_USBD_COMPOSITE  */
+
+
+
+
+/*  HID keyboard report descriptor */
+__ALIGN_BEGIN static uint8_t HID_KEYBOARD_ReportDesc[HID_KEYBOARD_REPORT_DESC_SIZE]  __ALIGN_END =
+{
+	     0x05    ,//bSize: 0x01, bType: Global, bTag: Usage Page
+	     0x01    ,//Usage Page(Generic Desktop Controls )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x06    ,//Usage(Keyboard)
+	     0xA1    ,//bSize: 0x01, bType: Main, bTag: Collection
+	     0x01    ,//Collection(Application )
+	     0x85    ,//bSize: 0x01, bType: Global, bTag: Report ID
+	     0x01    ,//Report ID(0x1 )
+	     0x05    ,//bSize: 0x01, bType: Global, bTag: Usage Page
+	     0x07    ,//Usage Page(Keyboard/Keypad )
+	     0x19    ,//bSize: 0x01, bType: Local, bTag: Usage Minimum
+	     0xE0    ,//Usage Minimum(0xE0 )
+	     0x29    ,//bSize: 0x01, bType: Local, bTag: Usage Maximum
+	     0xE7    ,//Usage Maximum(0xE7 )
+	     0x15    ,//bSize: 0x01, bType: Global, bTag: Logical Minimum
+	     0x00    ,//Logical Minimum(0x0 )
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x01    ,//Logical Maximum(0x1 )
+	     0x75    ,//bSize: 0x01, bType: Global, bTag: Report Size
+	     0x01    ,//Report Size(0x1 )
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x08    ,//Report Count(0x8 )
+	     0x81    ,//bSize: 0x01, bType: Main, bTag: Input
+	     0x02    ,//Input(Data, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Bit Field)
+	     0x75    ,//bSize: 0x01, bType: Global, bTag: Report Size
+	     0x08    ,//Report Size(0x8 )
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x01    ,//Report Count(0x1 )
+	     0x81    ,//bSize: 0x01, bType: Main, bTag: Input
+	     0x01    ,//Input(Constant, Array, Absolute, No Wrap, Linear, Preferred State, No Null Position, Bit Field)
+	     0x05    ,//bSize: 0x01, bType: Global, bTag: Usage Page
+	     0x07    ,//Usage Page(Keyboard/Keypad )
+	     0x19    ,//bSize: 0x01, bType: Local, bTag: Usage Minimum
+	     0x00    ,//Usage Minimum(0x0 )
+	     0x29    ,//bSize: 0x01, bType: Local, bTag: Usage Maximum
+	     0x65    ,//Usage Maximum(0x65 )
+	     0x15    ,//bSize: 0x01, bType: Global, bTag: Logical Minimum
+	     0x00    ,//Logical Minimum(0x0 )
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x65    ,//Logical Maximum(0x65 )
+	     0x75    ,//bSize: 0x01, bType: Global, bTag: Report Size
+	     0x08    ,//Report Size(0x8 )
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x05    ,//Report Count(0x5 )
+	     0x81    ,//bSize: 0x01, bType: Main, bTag: Input
+	     0x00    ,//Input(Data, Array, Absolute, No Wrap, Linear, Preferred State, No Null Position, Bit Field)
+	     0xC0    ,//bSize: 0x00, bType: Main, bTag: End Collection
+	     0x05    ,//bSize: 0x01, bType: Global, bTag: Usage Page
+	     0x0C    ,//Usage Page(Consumer )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x01    ,//Usage(Consumer Control)
+	     0xA1    ,//bSize: 0x01, bType: Main, bTag: Collection
+	     0x01    ,//Collection(Application )
+	     0x85    ,//bSize: 0x01, bType: Global, bTag: Report ID
+	     0x02    ,//Report ID(0x2 )
+	     0x19    ,//bSize: 0x01, bType: Local, bTag: Usage Minimum
+	     0x00    ,//Usage Minimum(0x0 )
+	     0x2A    ,//bSize: 0x02, bType: Local, bTag: Usage Maximum
+	     0x3C,
+	     0x02 ,//Usage Maximum(0x23C )
+	     0x15    ,//bSize: 0x01, bType: Global, bTag: Logical Minimum
+	     0x00    ,//Logical Minimum(0x0 )
+	     0x26    ,//bSize: 0x02, bType: Global, bTag: Logical Maximum
+	     0x3C,
+	     0x02 ,//Logical Maximum(0x23C )
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x01    ,//Report Count(0x1 )
+	     0x75    ,//bSize: 0x01, bType: Global, bTag: Report Size
+	     0x10    ,//Report Size(0x10 )
+	     0x81    ,//bSize: 0x01, bType: Main, bTag: Input
+	     0x00    ,//Input(Data, Array, Absolute, No Wrap, Linear, Preferred State, No Null Position, Bit Field)
+	     0xC0    ,//bSize: 0x00, bType: Main, bTag: End Collection
+	     0x05    ,//bSize: 0x01, bType: Global, bTag: Usage Page
+	     0x01    ,//Usage Page(Generic Desktop Controls )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x80    ,//Usage(System Control)
+	     0xA1    ,//bSize: 0x01, bType: Main, bTag: Collection
+	     0x01    ,//Collection(Application )
+	     0x85    ,//bSize: 0x01, bType: Global, bTag: Report ID
+	     0x03    ,//Report ID(0x3 )
+	     0x19    ,//bSize: 0x01, bType: Local, bTag: Usage Minimum
+	     0x81    ,//Usage Minimum(0x81 )
+	     0x29    ,//bSize: 0x01, bType: Local, bTag: Usage Maximum
+	     0x83    ,//Usage Maximum(0x83 )
+	     0x15    ,//bSize: 0x01, bType: Global, bTag: Logical Minimum
+	     0x00    ,//Logical Minimum(0x0 )
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x01    ,//Logical Maximum(0x1 )
+	     0x75    ,//bSize: 0x01, bType: Global, bTag: Report Size
+	     0x01    ,//Report Size(0x1 )
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x03    ,//Report Count(0x3 )
+	     0x81    ,//bSize: 0x01, bType: Main, bTag: Input
+	     0x02    ,//Input(Data, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Bit Field)
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x05    ,//Report Count(0x5 )
+	     0x81    ,//bSize: 0x01, bType: Main, bTag: Input
+	     0x01    ,//Input(Constant, Array, Absolute, No Wrap, Linear, Preferred State, No Null Position, Bit Field)
+	     0xC0    ,//bSize: 0x00, bType: Main, bTag: End Collection
+	     0x06    ,//bSize: 0x02, bType: Global, bTag: Usage Page
+	     0x01,
+	     0xFF ,//Usage Page(Undefined )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x01    ,//Usage(1)
+	     0xA1    ,//bSize: 0x01, bType: Main, bTag: Collection
+	     0x01    ,//Collection(Application )
+	     0x85    ,//bSize: 0x01, bType: Global, bTag: Report ID
+	     0x04    ,//Report ID(0x4 )
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x01    ,//Report Count(0x1 )
+	     0x75    ,//bSize: 0x01, bType: Global, bTag: Report Size
+	     0x08    ,//Report Size(0x8 )
+	     0x15    ,//bSize: 0x01, bType: Global, bTag: Logical Minimum
+	     0x01    ,//Logical Minimum(0x1 )
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x0A    ,//Logical Maximum(0xA )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x20    ,//Usage(32)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x23    ,//Usage(35)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x4F    ,//Logical Maximum(0x4F )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x21    ,//Usage(33)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x30    ,//Logical Maximum(0x30 )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x22    ,//Usage(34)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x03    ,//Report Count(0x3 )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x24    ,//Usage(36)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0xC0    ,//bSize: 0x00, bType: Main, bTag: End Collection
+	     0x06    ,//bSize: 0x02, bType: Global, bTag: Usage Page
+	     0x01,
+	     0xFF ,//Usage Page(Undefined )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x01    ,//Usage(1)
+	     0xA1    ,//bSize: 0x01, bType: Main, bTag: Collection
+	     0x01    ,//Collection(Application )
+	     0x85    ,//bSize: 0x01, bType: Global, bTag: Report ID
+	     0x05    ,//Report ID(0x5 )
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x01    ,//Report Count(0x1 )
+	     0x75    ,//bSize: 0x01, bType: Global, bTag: Report Size
+	     0x08    ,//Report Size(0x8 )
+	     0x15    ,//bSize: 0x01, bType: Global, bTag: Logical Minimum
+	     0x01    ,//Logical Minimum(0x1 )
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x0A    ,//Logical Maximum(0xA )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x20    ,//Usage(32)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x23    ,//Usage(35)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x4F    ,//Logical Maximum(0x4F )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x21    ,//Usage(33)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x25    ,//bSize: 0x01, bType: Global, bTag: Logical Maximum
+	     0x30    ,//Logical Maximum(0x30 )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x22    ,//Usage(34)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0x95    ,//bSize: 0x01, bType: Global, bTag: Report Count
+	     0x03    ,//Report Count(0x3 )
+	     0x09    ,//bSize: 0x01, bType: Local, bTag: Usage
+	     0x24    ,//Usage(36)
+	     0xB1    ,//bSize: 0x01, bType: Main, bTag: Feature
+	     0x03    ,//Feature(Constant, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Non VolatileBit Field)
+	     0xC0    //bSize: 0x00, bType: Main, bTag: End Collection
+};
+
+
+typedef struct {
+	uint8_t report_id;
+	uint8_t modifier;
+	uint8_t reserved;
+	uint8_t keycode_data[5];
+}__attribute__((packed, aligned (1))) KeyboardReport_t;
+
+
+extern USBD_HandleTypeDef hUsbDeviceFS;
+static KeyboardReport_t keyboardReport = {0};
+
+
+keyboardReport.report_id = 0x01;
+
+BSP_LED_Toggle(LED_GREEN);
+keyboardReport.modifier = 0x02;
+keyboardReport.keycode_data[0] = 0x10;
+USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyboardReport, sizeof(keyboardReport));
+osDelay(100);
+
+keyboardReport.modifier = 0x00;
+keyboardReport.keycode_data[0] = 0x00;
+USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyboardReport, sizeof(keyboardReport));
+osDelay(1000);
+
